@@ -1,17 +1,38 @@
 ﻿using Xunit;
 using AI.Gateway.Api.Controllers;
 using AI.Gateway.Api.Models;
+using AI.Gateway.Api.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AI.Gateway.Tests
 {
     public class AnalysisControllerTests
     {
-        [Fact]
-        public void Post_WithKnownKeywords_ReturnsFindingsAndAssumptions()
+        private class AnalyzerStub : IPromptAnalyzer
         {
-            // Arrange
-            var controller = new AnalysisController();
+            private readonly AnalysisResponse _response;
+
+            public AnalyzerStub(AnalysisResponse response)
+            {
+                _response = response;
+            }
+
+            public AnalysisResponse Analyze(string prompt)
+            {
+                return _response;
+            }
+        }
+
+        [Fact]
+        public void Post_WithValidPrompt_ReturnsAnalyzerResponse()
+        {
+            // Arrange - create a deterministic response the stub will return
+            var response = new AnalysisResponse();
+            response.Completeness.Add(new Finding { Observation = "obs", Impact = "imp" });
+            response.Assumptions.Add(new Finding { Observation = "ass", Impact = "imp" });
+
+            var stub = new AnalyzerStub(response);
+            var controller = new AnalysisController(stub);
             var request = new AnalysisRequest { Prompt = "Implement auth and database for feature X" };
 
             // Act
@@ -19,29 +40,17 @@ namespace AI.Gateway.Tests
 
             // Assert
             Assert.NotNull(actionResult);
-            // Successful path returns the response as Value
             Assert.Null(actionResult.Result);
-            var response = actionResult.Value;
-            Assert.NotNull(response);
-            Assert.NotEmpty(response.Completeness);
-            Assert.NotEmpty(response.Assumptions);
-            foreach (var f in response.Completeness)
-            {
-                Assert.False(string.IsNullOrWhiteSpace(f.Observation));
-                Assert.False(string.IsNullOrWhiteSpace(f.Impact));
-            }
-            foreach (var a in response.Assumptions)
-            {
-                Assert.False(string.IsNullOrWhiteSpace(a.Observation));
-                Assert.False(string.IsNullOrWhiteSpace(a.Impact));
-            }
+            var actual = actionResult.Value;
+            Assert.Same(response, actual);
         }
 
         [Fact]
         public void Post_WithEmptyPrompt_ReturnsBadRequest()
         {
             // Arrange
-            var controller = new AnalysisController();
+            var stub = new AnalyzerStub(new AnalysisResponse());
+            var controller = new AnalysisController(stub);
             var request = new AnalysisRequest { Prompt = "" };
 
             // Act
@@ -49,7 +58,6 @@ namespace AI.Gateway.Tests
 
             // Assert
             Assert.NotNull(actionResult);
-            // Expect a BadRequest result
             Assert.NotNull(actionResult.Result);
             Assert.IsType<BadRequestObjectResult>(actionResult.Result);
             var bad = actionResult.Result as BadRequestObjectResult;
