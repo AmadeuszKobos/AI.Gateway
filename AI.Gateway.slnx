@@ -1,4 +1,10 @@
 <Solution>
+  <Folder Name="/docs/">
+    <File Path="docs/02-project-context.md" />
+    <File Path="docs/03-architecture.md" />
+    <File Path="docs/04-backlog.md" />
+    <File Path="docs/05-decisions.md" />
+  </Folder>
   <Project Path="AI.Gateway.Api/AI.Gateway.Api.csproj" Id="d2949b59-22e4-43dc-9f99-34e4cebf570f" />
   <Project Path="AI.Gateway.Tests/AI.Gateway.Tests.csproj" Id="cec4d241-37cb-4c9b-8eee-d53ac60e774f" />
 </Solution>
