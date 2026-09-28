@@ -30,16 +30,6 @@ MVP:
 - dodatkowe perspektywy analizy,
 - automatyczne rozstrzyganie, która sugestia jest najlepsza.
 
-## Stack technologiczny
-- Backend: TODO
-- Runtime: TODO
-- API: TODO
-- AI provider(s): TODO
-- Storage: TODO
-- Observability: TODO
-- Testy: TODO
-- Deployment: TODO
-
 ## Stack technologiczny (aktualny)
 - .NET 10
 - ASP.NET Core Web API
