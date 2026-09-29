@@ -1,11 +1,13 @@
 using AI.Gateway.Api.Models;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace AI.Gateway.Api.Services
 {
     public class FakePromptAnalyzer : IPromptAnalyzer
     {
-        public AnalysisResponse Analyze(string prompt)
+        public Task<AnalysisResponse> AnalyzeAsync(string prompt, CancellationToken cancellationToken = default)
         {
             var p = prompt?.ToLowerInvariant() ?? string.Empty;
 
@@ -108,11 +110,13 @@ namespace AI.Gateway.Api.Services
                 });
             }
 
-            return new AnalysisResponse
+            var result = new AnalysisResponse
             {
                 Completeness = completeness,
                 Assumptions = assumptions
             };
+
+            return Task.FromResult(result);
         }
     }
 }

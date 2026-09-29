@@ -3,6 +3,7 @@ using AI.Gateway.Api.Controllers;
 using AI.Gateway.Api.Models;
 using AI.Gateway.Api.Services;
 using Microsoft.AspNetCore.Mvc;
+using System.Threading;
 
 namespace AI.Gateway.Tests
 {
@@ -17,14 +18,14 @@ namespace AI.Gateway.Tests
                 _response = response;
             }
 
-            public AnalysisResponse Analyze(string prompt)
+            public System.Threading.Tasks.Task<AnalysisResponse> AnalyzeAsync(string prompt, System.Threading.CancellationToken cancellationToken = default)
             {
-                return _response;
+                return System.Threading.Tasks.Task.FromResult(_response);
             }
         }
 
         [Fact]
-        public void Post_WithValidPrompt_ReturnsAnalyzerResponse()
+        public async System.Threading.Tasks.Task Post_WithValidPrompt_ReturnsAnalyzerResponse()
         {
             // Arrange - create a deterministic response the stub will return
             var response = new AnalysisResponse();
@@ -36,7 +37,7 @@ namespace AI.Gateway.Tests
             var request = new AnalysisRequest { Prompt = "Implement auth and database for feature X" };
 
             // Act
-            var actionResult = controller.Post(request);
+            var actionResult = await controller.Post(request, CancellationToken.None);
 
             // Assert
             Assert.NotNull(actionResult);
@@ -46,7 +47,7 @@ namespace AI.Gateway.Tests
         }
 
         [Fact]
-        public void Post_WithEmptyPrompt_ReturnsBadRequest()
+        public async System.Threading.Tasks.Task Post_WithEmptyPrompt_ReturnsBadRequest()
         {
             // Arrange
             var stub = new AnalyzerStub(new AnalysisResponse());
@@ -54,7 +55,7 @@ namespace AI.Gateway.Tests
             var request = new AnalysisRequest { Prompt = "" };
 
             // Act
-            var actionResult = controller.Post(request);
+            var actionResult = await controller.Post(request, CancellationToken.None);
 
             // Assert
             Assert.NotNull(actionResult);

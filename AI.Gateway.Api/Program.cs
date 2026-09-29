@@ -5,8 +5,29 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
-// Register prompt analyzer
-builder.Services.AddSingleton<AI.Gateway.Api.Services.IPromptAnalyzer, AI.Gateway.Api.Services.FakePromptAnalyzer>();
+// Register OpenAI client and prompt analyzer
+// OpenAI API key must be provided via environment variable OPENAI_API_KEY or user secrets (not committed)
+var openAiApiKey = builder.Configuration["OPENAI_API_KEY"];
+if (string.IsNullOrWhiteSpace(openAiApiKey))
+{
+    // Do not silently continue without API key; fail fast so configuration is explicit for runtime.
+    throw new InvalidOperationException("OPENAI_API_KEY configuration value is required to run with OpenAIPromptAnalyzer.");
+}
+
+// Register concrete ResponsesClient from the OpenAI SDK as a singleton (long-lived, thread-safe)
+builder.Services.AddSingleton(sp =>
+{
+    // Construct ResponsesClient directly with the API key
+    // Suppress OPENAI001 warnings for usage of SDK evaluation types
+    #pragma warning disable OPENAI001
+    return new OpenAI.Responses.ResponsesClient(openAiApiKey);
+    #pragma warning restore OPENAI001
+});
+// Register adapter that wraps the SDK ResponsesClient
+builder.Services.AddSingleton<AI.Gateway.Api.Services.IOpenAIResponsesClient, AI.Gateway.Api.Services.OpenAIResponsesClient>();
+
+// Register OpenAIPromptAnalyzer as the active IPromptAnalyzer implementation
+builder.Services.AddSingleton<AI.Gateway.Api.Services.IPromptAnalyzer, AI.Gateway.Api.Services.OpenAIPromptAnalyzer>();
 
 var app = builder.Build();
 

@@ -7,14 +7,14 @@ namespace AI.Gateway.Tests
     public class FakePromptAnalyzerTests
     {
         [Fact]
-        public void Analyze_WithKeywords_ReturnsFindingsAndAssumptions()
+        public async System.Threading.Tasks.Task Analyze_WithKeywords_ReturnsFindingsAndAssumptions()
         {
             // Arrange
             var analyzer = new FakePromptAnalyzer();
             var prompt = "This feature needs auth and database integration";
 
             // Act
-            var result = analyzer.Analyze(prompt);
+            var result = await analyzer.AnalyzeAsync(prompt);
 
             // Assert
             Assert.NotNull(result);
@@ -41,14 +41,14 @@ namespace AI.Gateway.Tests
         }
 
         [Fact]
-        public void Analyze_WithNoKeywords_ReturnsFallbackFindings()
+        public async System.Threading.Tasks.Task Analyze_WithNoKeywords_ReturnsFallbackFindings()
         {
             // Arrange
             var analyzer = new FakePromptAnalyzer();
             var prompt = "Do something unspecified";
 
             // Act
-            var result = analyzer.Analyze(prompt);
+            var result = await analyzer.AnalyzeAsync(prompt);
 
             // Assert
             Assert.NotNull(result);

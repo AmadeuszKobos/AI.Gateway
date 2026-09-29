@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Mvc;
 using AI.Gateway.Api.Models;
 using System.Collections.Generic;
 using AI.Gateway.Api.Services;
+using System.Threading.Tasks;
+using System.Threading;
 
 namespace AI.Gateway.Api.Controllers
 {
@@ -17,14 +19,14 @@ namespace AI.Gateway.Api.Controllers
         }
 
         [HttpPost]
-        public ActionResult<AnalysisResponse> Post([FromBody] AnalysisRequest? request)
+        public async Task<ActionResult<AnalysisResponse>> Post([FromBody] AnalysisRequest? request, CancellationToken cancellationToken)
         {
             if (request == null || string.IsNullOrWhiteSpace(request.Prompt))
             {
                 return BadRequest(new { error = "Prompt is required" });
             }
 
-            var response = _analyzer.Analyze(request.Prompt);
+            var response = await _analyzer.AnalyzeAsync(request.Prompt, cancellationToken);
             return response;
         }
     }
