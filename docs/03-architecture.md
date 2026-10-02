@@ -3,14 +3,14 @@
 > Dokumentuj aktualną architekturę. Nie opisuj planowanej architektury jako istniejącej.
 
 ## 1. Overview
-Projekt zawiera działający, minimalny vertical slice analizujący prompt: HTTP API przyjmuje prompt i zwraca AnalysisResponse z dwoma perspektywami (Completeness i Assumptions). Analiza jest deterministyczna i realizowana przez FakePromptAnalyzer.
+Projekt zawiera działający, minimalny vertical slice analizujący prompt: HTTP API przyjmuje prompt i zwraca AnalysisResponse z dwiema perspektywami (Completeness i Assumptions). Runtime używa OpenAIPromptAnalyzer, który deleguje do adaptera IOpenAIResponsesClient i dalej do OpenAIResponsesClient wykorzystującego oficjalny OpenAI .NET SDK 2.14.0 i Responses API.
 
 ## 2. System Context
 ### Użytkownicy / klienci
 Developer / technical user korzystający z API do uzyskania uwag o brakach i niejawnych założeniach w prompcie.
 
 ### Systemy zewnętrzne
-Brak zintegrowanych dostawców AI ani innych zewnętrznych systemów w bieżącej implementacji.
+- OpenAI Responses API (integracja runtime przez OpenAIResponsesClient)
 
 ## 3. High-Level Architecture
 Runtime: .NET 10
@@ -19,7 +19,9 @@ API: ASP.NET Core Web API
 Główne elementy zaimplementowane w repozytorium:
 - AnalysisController (HTTP API)
 - IPromptAnalyzer (kontrakt)
-- FakePromptAnalyzer (deterministyczna implementacja analizatora)
+- OpenAIPromptAnalyzer (runtime implementation)
+- IOpenAIResponsesClient, OpenAIResponsesClient (adapter + SDK boundary)
+- FakePromptAnalyzer — deterministyczna implementacja pozostająca w repozytorium, ale niewykorzystywana jako aktywny runtime analyzer
 - wbudowane OpenAPI i Swagger UI (Swagger UI włączany tylko w środowisku Development)
 
 ## 4. Components
@@ -31,21 +33,29 @@ Główne elementy zaimplementowane w repozytorium:
 **Dependencies:** IPromptAnalyzer
 
 ### Component: IPromptAnalyzer
-**Responsibility:** Definiuje kontrakt metody Analyze(string prompt) zwracającej AnalysisResponse.
-**Inputs:** string prompt
+**Responsibility:** Aplikacyjny, provider-agnostyczny kontrakt analizy promptu. Metoda jest asynchroniczna i akceptuje CancellationToken.
+**Inputs:** string prompt, CancellationToken
 **Outputs:** AnalysisResponse
 **Dependencies:** brak (interfejs)
 
+### Component: OpenAIPromptAnalyzer
+**Responsibility:** Implementacja uruchomieniowa IPromptAnalyzer, która waliduje prompt, wywołuje IOpenAIResponsesClient, sprawdza, że odpowiedź dostawcy nie jest pusta oraz deserializuje JSON do AnalysisResponse. Nie zawiera typów SDK OpenAI (zależność realizowana wyłącznie przez interfejs adaptera).
+**Inputs:** string prompt, CancellationToken
+**Outputs:** AnalysisResponse
+**Dependencies:** IOpenAIResponsesClient
+
+### Component: IOpenAIResponsesClient / OpenAIResponsesClient
+**Responsibility (IOpenAIResponsesClient):** Minimalna warstwa-adapter dla wywołania OpenAI Responses; utrzymuje kod wyższego poziomu wolny od typów SDK.
+**Responsibility (OpenAIResponsesClient):** Odpowiada za konstrukcję żądania specyficznego dla SDK, konfiguruje strukturalizowany output (JSON Schema) poprzez Patch na $.text.format, wywołuje ResponsesClient.CreateResponseAsync oraz wydobywa tekst wyjściowy za pomocą GetOutputText.
+**Dependencies:** OpenAI .NET SDK 2.14.0 (Responses API)
+
 ### Component: FakePromptAnalyzer
-**Responsibility:** Deterministyczna analiza promptu — mapowanie prostych słów-kluczy na znalezione braki (Completeness) i założenia (Assumptions).
-**Inputs:** string prompt
-**Outputs:** AnalysisResponse (listy Finding w Completeness i Assumptions)
-**Dependencies:** brak zewnętrznych usług; implementacja znajduje się w projekcie API.
+**Responsibility:** Deterministyczna implementacja pozostająca w repozytorium, ale niewykorzystywana jako aktywny runtime analyzer.
 
 ## 5. Request Flow
-HTTP request -> AnalysisController -> IPromptAnalyzer -> FakePromptAnalyzer -> AnalysisResponse
+HTTP POST /api/Analysis -> AnalysisController -> IPromptAnalyzer -> OpenAIPromptAnalyzer -> IOpenAIResponsesClient -> OpenAIResponsesClient -> OpenAI Responses API
 
-Przy pustym lub whitespace prompt zwracany jest BadRequest (walidacja w kontrolerze).
+CancellationToken jest przekazywany z AnalysisController przez IPromptAnalyzer do wywołania SDK OpenAI. Kontroler waliduje wejście i zwraca HTTP 400 dla pustych lub zawierających tylko whitespace promptów.
 
 ## 6. Configuration
 Projekt udostępnia wygenerowany dokument OpenAPI (MapOpenApi). Swagger UI jest skonfigurowany i udostępniany wyłącznie w trybie Development (kod w Program.cs). Inne elementy konfiguracyjne pozostają niezaimplementowane / TODO.
@@ -60,15 +70,18 @@ TODO: brak wdrożonych mechanizmów uwierzytelniania/autoryzacji w obecnej imple
 TODO: brak zintegrowanych mechanizmów obserwowalności (logging/metrics/tracing) w bieżącej wersji.
 
 ## 10. Data Flow
-Prompt (HTTP request body) -> AnalysisController validates input -> AnalysisController calls IPromptAnalyzer.Analyze -> FakePromptAnalyzer produces AnalysisResponse (Completeness, Assumptions) -> AnalysisController returns AnalysisResponse to the caller.
+Prompt (ciało żądania HTTP) -> AnalysisController waliduje wejście -> AnalysisController wywołuje IPromptAnalyzer.Analyze -> FakePromptAnalyzer generuje AnalysisResponse (Completeness, Assumptions) -> AnalysisController zwraca AnalysisResponse do klienta.
 
 ## 11. Deployment Model
 TODO: brak zdefiniowanego modelu deploymentu w repozytorium.
 
 ## 12. Known Limitations
-- Analiza jest deterministyczna/fake (FakePromptAnalyzer) i nie korzysta z rzeczywistego dostawcy AI.
-- Brak integracji z zewnętrznymi providerami AI.
-- Swagger UI jest uruchamiany tylko w środowisku Development.
+- OpenAI Responses surface in SDK 2.14.0 is experimental/evaluation and subject to change.
+- Structured output uses Patch to set $.text.format because typed SDK support for structured outputs is not available in 2.14.0.
+- No retries or rate-limiting implemented.
+- No observability (metrics/tracing/log aggregation) implemented.
+- No provider fallback or multi-provider support.
+- Full paid structured-output end-to-end success is still pending (controlled smoke tests reached the provider, but final paid structured-output confirmation remains incomplete).
 
 ## 13. Open Architecture Questions
-- Brak otwartych pytań architektonicznych na tym etapie.
+Brak nowych otwartych pytań architektonicznych z perspektywy wdrożonej integracji runtime; zobacz Known Limitations dla elementów wymagających dalszego rozwoju.

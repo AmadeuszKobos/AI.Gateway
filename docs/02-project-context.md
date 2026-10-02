@@ -37,25 +37,39 @@ MVP:
 - wbudowany OpenAPI
 - Swagger UI (uruchamiany tylko w trybie Development)
 
+Dodatkowe elementy runtime:
+- oficjalny OpenAI .NET SDK 2.14.0
+- OpenAI Responses API (wykorzystane przez adapter OpenAIResponsesClient)
+- strukturalizowany output skonfigurowany przy użyciu JSON Schema (ustawiany przez Patch w SDK)
+
 ## Aktualny stan
 Zdefiniowano problem, docelowego użytkownika, główny demonstracyjny use case oraz granice MVP.
-Zaimplementowano pierwszy techniczny vertical slice: API przyjmuje prompt i zwraca deterministyczną analizę (FakePromptAnalyzer). System nie jest połączony z rzeczywistym dostawcą AI.
+Zaimplementowano techniczny vertical slice z rzeczywistą integracją runtime z OpenAI Responses API. Zamiast FakePromptAnalyzer w czasie wykonywania aplikacji używany jest OpenAIPromptAnalyzer, który deleguje do adaptera IOpenAIResponsesClient i dalej do OpenAIResponsesClient (który korzysta z oficjalnego SDK 2.14.0). FakePromptAnalyzer pozostaje w repozytorium jako deterministyczna implementacja, ale nie jest używany jako aktywny analyzer runtime.
+
+Ważne: osiągnięto rzeczywistą komunikację z API OpenAI podczas kontrolnych testów smoke; pełna, opłacona end-to-end (E2E) walidacja poprawnego structured-output pozostaje nieukończona.
 
 ## Najważniejsze komponenty
 - AnalysisController (HTTP API) — przyjmuje żądania z promptem i deleguje analizę
 - IPromptAnalyzer (interfejs) — kontrakt analizy promptu
-- FakePromptAnalyzer — deterministyczna implementacja analizatora
+- OpenAIPromptAnalyzer — implementacja uruchomieniowa delegująca do IOpenAIResponsesClient
+- IOpenAIResponsesClient / OpenAIResponsesClient — minimalny adapter izolujący zależności od OpenAI SDK
+- FakePromptAnalyzer — deterministyczna implementacja pozostająca w repozytorium, ale niewykorzystywana jako aktywny runtime analyzer
 - Wbudowane OpenAPI i Swagger UI (Swagger UI działa tylko w środowisku Development)
 
 ## Ukończone funkcjonalności
 - [x] Zdefiniowano MVP projektu.
 - [x] Pierwszy techniczny vertical slice: endpoint analizy promptu z deterministycznym FakePromptAnalyzer i testami jednostkowymi.
+- [x] Zastąpiono fake runtime analizator (FakePromptAnalyzer) implementacją opartą o OpenAI Responses API (OpenAIPromptAnalyzer + OpenAIResponsesClient). Integracja osiągnięta bez wprowadzania sekretów do repozytorium.
+- [x] Osiągnięto rzeczywistą komunikację z API OpenAI podczas kontrolnych testów smoke; pełna, opłacona end-to-end (E2E) walidacja poprawnego structured-output pozostaje nieukończona.
 
 ## Aktualny task
 Brak aktywnego tasku.
 
 ## Otwarte problemy / pytania
-Brak otwartych pytań technicznych zapisanych w repozytorium.
+Otwarte pytania / ograniczenia do uwzględnienia:
+- Pełna, opłacona E2E walidacja poprawnej strukturalnej odpowiedzi pozostaje pending (testy smoke wykonały połączenie z providerem, ale płatne żądanie z pełnym structured-output nie zostało ukończone).
+- SDK OpenAI 2.14.0 nie wystawia jeszcze w pełni typowanego, publicznego API do structured outputs, dlatego implementacja używa Patch do ustawienia $.text.format.
+- Brak retry/limitowania/observability/authentication/deployment — te aspekty nie zostały zaimplementowane i nie są przedmiotem tego sprintu.
 
 ## Aktualne elementy konfiguracji GitHub Copilot
 .github/copilot-instructions.md: TODO
@@ -68,4 +82,4 @@ custom agents: TODO
 Copilot został wykorzystany do analizy repozytorium, wsparcia przy implementacji kodu i testów oraz przy edycji dokumentacji widocznej w repozytorium.
 
 ## Ostatnia aktualizacja
-2026-09-28
+2026-10-02
