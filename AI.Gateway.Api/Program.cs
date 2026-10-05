@@ -3,6 +3,9 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 
 builder.Services.AddControllers();
+// Add ProblemDetails services and register typed exception handler
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<AI.Gateway.Api.GlobalExceptionHandler>();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 // Register OpenAI client and prompt analyzer
@@ -32,6 +35,9 @@ builder.Services.AddSingleton<AI.Gateway.Api.Services.IPromptAnalyzer, AI.Gatewa
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
+// Enable the framework exception handler which will resolve the typed handler
+app.UseExceptionHandler();
+
 if (app.Environment.IsDevelopment())
 {
     // expose built-in OpenAPI document

@@ -84,3 +84,45 @@ Introduce a minimal adapter: IOpenAIResponsesClient and OpenAIResponsesClient.
 **Note**
 
 Structured Outputs currently use Patch to set $.text.format because OpenAI .NET SDK 2.14.0 does not expose the required typed Responses member for structured outputs; this is an implementation detail confined to OpenAIResponsesClient.
+
+### DEC-ERROR-HANDLING — Use native IExceptionHandler with ProblemDetails
+
+**Date:** 2026-10-05
+**Status:** Accepted
+
+**Context**
+
+The API needs a centralized mechanism for converting unhandled runtime exceptions
+into safe and consistent HTTP responses without adding try/catch logic to controllers.
+
+**Options Considered**
+1. MVC exception filters.
+2. Custom exception middleware.
+3. Native ASP.NET Core IExceptionHandler with ProblemDetails.
+
+**Decision**
+
+Use ASP.NET Core `IExceptionHandler` together with `AddProblemDetails()`,
+`AddExceptionHandler<T>()` and `UseExceptionHandler()`.
+
+**Why**
+
+- Central handling across the HTTP pipeline.
+- Native framework support without external dependencies.
+- Keeps controllers focused on request handling.
+- Provides a standard ProblemDetails contract.
+- Allows future exception-category mappings without changing controller code.
+
+**Consequences**
+
+Positive:
+- consistent safe 500 responses,
+- no exception details exposed to API clients,
+- extensible place for future mappings.
+
+Trade-offs:
+- current implementation intentionally maps all unhandled runtime exceptions to 500,
+- cancellation and provider-specific 502/503 mappings remain future work.
+
+**Follow-up**
+- Consider more granular mappings when there is a concrete client or observability use case.

@@ -61,7 +61,20 @@ CancellationToken jest przekazywany z AnalysisController przez IPromptAnalyzer d
 Projekt udostępnia wygenerowany dokument OpenAPI (MapOpenApi). Swagger UI jest skonfigurowany i udostępniany wyłącznie w trybie Development (kod w Program.cs). Inne elementy konfiguracyjne pozostają niezaimplementowane / TODO.
 
 ## 7. Error Handling
-Kontroler zwraca HTTP 400 (BadRequest) gdy prompt jest pusty lub null. Inne mechanizmy obsługi błędów nie zostały dodane i pozostają jako TODO.
+
+AnalysisController returns HTTP 400 for a missing or whitespace-only prompt.
+
+Unhandled runtime exceptions are handled centrally using ASP.NET Core `IExceptionHandler`.
+`GlobalExceptionHandler` uses `IProblemDetailsService` to return a safe HTTP 500
+`ProblemDetails` response without exposing exception messages, stack traces or provider-specific details.
+
+The handler is registered using:
+- `AddProblemDetails()`
+- `AddExceptionHandler<GlobalExceptionHandler>()`
+- `UseExceptionHandler()`
+
+More granular mappings such as provider availability vs invalid upstream responses
+are intentionally not implemented yet.
 
 ## 8. Security Boundaries
 TODO: brak wdrożonych mechanizmów uwierzytelniania/autoryzacji w obecnej implementacji.

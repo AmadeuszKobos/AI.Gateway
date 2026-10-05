@@ -87,3 +87,32 @@ DONE
 - Agent-driven, controlled multi-file implementation and refactors were used to implement the change.
 - Compiler feedback (build errors) and small SDK spikes were used to validate SDK surface and Patch behavior rather than relying solely on generated code.
 - Code review and manual cleanup were performed; Copilot suggestions were reviewed and not accepted blindly.
+
+### AG-004 — Centralized API error handling
+
+**Business/Technical Goal**
+
+Introduce centralized handling of unhandled runtime exceptions using native ASP.NET Core mechanisms while keeping client-facing error responses safe and consistent.
+
+**Acceptance Criteria**
+- [x] Global exception handling uses ASP.NET Core `IExceptionHandler`.
+- [x] `ProblemDetails` is registered and used for error responses.
+- [x] Unhandled runtime exceptions return safe HTTP 500 `ProblemDetails`.
+- [x] Exception messages, stack traces and provider details are not exposed to clients.
+- [x] Existing HTTP 400 validation for an empty prompt remains unchanged.
+- [x] Integration tests verify both 500 and 400 paths.
+- [x] Test infrastructure uses `Microsoft.AspNetCore.Mvc.Testing` compatible with .NET 10.
+- [x] Solution builds without warnings.
+- [x] 9/9 tests pass.
+
+**Status**
+
+DONE
+
+**Copilot Approach**
+
+- Copilot Chat was used to analyze failure paths and compare error-handling approaches.
+- The initial Copilot design was reviewed and corrected to use native `IExceptionHandler`, `AddProblemDetails()`, `AddExceptionHandler<T>()` and `UseExceptionHandler()`.
+- Agent/Edit support was used for implementation and tests.
+- A failing integration test was debugged manually with breakpoints rather than accepting Copilot's initial root-cause hypothesis.
+- The actual issue was traced to an incompatible `Microsoft.AspNetCore.Mvc.Testing` version and corrected before removing the temporary serialization workaround.
