@@ -36,7 +36,10 @@ var app = builder.Build();
 
 // Configure the HTTP request pipeline.
 // Enable the framework exception handler which will resolve the typed handler
-app.UseExceptionHandler();
+app.UseExceptionHandler(new ExceptionHandlerOptions
+{
+    SuppressDiagnosticsCallback = _ => false
+});
 
 if (app.Environment.IsDevelopment())
 {
