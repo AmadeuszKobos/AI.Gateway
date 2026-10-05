@@ -61,6 +61,8 @@ Ważne: osiągnięto rzeczywistą komunikację z API OpenAI podczas kontrolnych 
 - [x] Pierwszy techniczny vertical slice: endpoint analizy promptu z deterministycznym FakePromptAnalyzer i testami jednostkowymi.
 - [x] Zastąpiono fake runtime analizator (FakePromptAnalyzer) implementacją opartą o OpenAI Responses API (OpenAIPromptAnalyzer + OpenAIResponsesClient). Integracja osiągnięta bez wprowadzania sekretów do repozytorium.
 - [x] Osiągnięto rzeczywistą komunikację z API OpenAI podczas kontrolnych testów smoke; pełna, opłacona end-to-end (E2E) walidacja poprawnego structured-output pozostaje nieukończona.
+- [x] Dodano centralną obsługę nieobsłużonych wyjątków przy użyciu IExceptionHandler i ProblemDetails, z bezpiecznymi odpowiedziami HTTP 500 (AG-004).
+- [x] Zachowano diagnostykę frameworka dla wyjątków obsłużonych przez GlobalExceptionHandler (AG-005).
 
 ## Aktualny task
 Brak aktywnego tasku.
@@ -82,4 +84,4 @@ custom agents: TODO
 Copilot został wykorzystany do analizy repozytorium, wsparcia przy implementacji kodu i testów oraz przy edycji dokumentacji widocznej w repozytorium.
 
 ## Ostatnia aktualizacja
-2026-10-02
+2026-10-05

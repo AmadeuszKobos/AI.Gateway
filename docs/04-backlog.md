@@ -116,3 +116,26 @@ DONE
 - Agent/Edit support was used for implementation and tests.
 - A failing integration test was debugged manually with breakpoints rather than accepting Copilot's initial root-cause hypothesis.
 - The actual issue was traced to an incompatible `Microsoft.AspNetCore.Mvc.Testing` version and corrected before removing the temporary serialization workaround.
+
+### AG-005 — Preserve diagnostics for handled server exceptions
+
+**Business/Technical Goal**
+
+Preserve the framework diagnostics for exceptions that are handled by the centralized `GlobalExceptionHandler` so operational diagnostics emitted by ASP.NET Core are not suppressed for handled server errors.
+
+**Acceptance Criteria**
+- [x] `GlobalExceptionHandler` nadal zwraca bezpieczne `500 ProblemDetails`.
+- [x] Diagnostyka obsłużonych wyjątków nie jest tłumiona (framework diagnostics zachowane).
+- [x] Brak ręcznego logowania w `GlobalExceptionHandler`.
+- [x] Brak nowych bibliotek (nie dodano Serilog/OpenTelemetry itp.).
+- [x] Istniejące zachowanie `400` pozostaje bez zmian.
+- [x] Solution/build przechodzi bez warnings.
+- [x] Wszystkie istniejące testy przechodzą.
+
+**Status**
+
+DONE
+
+**Copilot Approach**
+
+AI / Copilot został użyty do analizy możliwych rozwiązań i porównania podejść. Sama zmiana w `Program.cs` (konfiguracja `UseExceptionHandler` z odpowiednimi `ExceptionHandlerOptions`) została wykonana ręcznie.

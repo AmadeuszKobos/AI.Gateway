@@ -73,6 +73,12 @@ The handler is registered using:
 - `AddExceptionHandler<GlobalExceptionHandler>()`
 - `UseExceptionHandler()`
 
+Note: `UseExceptionHandler` is configured with `ExceptionHandlerOptions` where
+`SuppressDiagnosticsCallback = _ => false`. This preserves framework diagnostics
+for exceptions handled by `GlobalExceptionHandler` (the application still returns
+safe `ProblemDetails` to clients while allowing ASP.NET Core to emit its diagnostic
+events for operational visibility).
+
 More granular mappings such as provider availability vs invalid upstream responses
 are intentionally not implemented yet.
 
@@ -80,10 +86,10 @@ are intentionally not implemented yet.
 TODO: brak wdrożonych mechanizmów uwierzytelniania/autoryzacji w obecnej implementacji.
 
 ## 9. Observability
-TODO: brak zintegrowanych mechanizmów obserwowalności (logging/metrics/tracing) w bieżącej wersji.
+Projekt korzysta z natywnej diagnostyki ASP.NET Core dla obsłużonych wyjątków. Brak pełnego observability stacku: dedicated application logging, metrics export, distributed tracing i log aggregation nie są jeszcze zaimplementowane.
 
 ## 10. Data Flow
-Prompt (ciało żądania HTTP) -> AnalysisController waliduje wejście -> AnalysisController wywołuje IPromptAnalyzer.Analyze -> FakePromptAnalyzer generuje AnalysisResponse (Completeness, Assumptions) -> AnalysisController zwraca AnalysisResponse do klienta.
+Prompt (ciało żądania HTTP) -> AnalysisController waliduje wejście -> AnalysisController wywołuje IPromptAnalyzer.Analyze -> OpenAIPromptAnalyzer -> IOpenAIResponsesClient -> OpenAIResponsesClient -> OpenAI Responses API -> AnalysisResponse (Completeness, Assumptions) -> AnalysisController zwraca AnalysisResponse do klienta.
 
 ## 11. Deployment Model
 TODO: brak zdefiniowanego modelu deploymentu w repozytorium.
@@ -92,7 +98,7 @@ TODO: brak zdefiniowanego modelu deploymentu w repozytorium.
 - OpenAI Responses surface in SDK 2.14.0 is experimental/evaluation and subject to change.
 - Structured output uses Patch to set $.text.format because typed SDK support for structured outputs is not available in 2.14.0.
 - No retries or rate-limiting implemented.
-- No observability (metrics/tracing/log aggregation) implemented.
+- No full observability stack (metrics export, distributed tracing, log aggregation) implemented.
 - No provider fallback or multi-provider support.
 - Full paid structured-output end-to-end success is still pending (controlled smoke tests reached the provider, but final paid structured-output confirmation remains incomplete).
 
