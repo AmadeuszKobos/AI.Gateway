@@ -1,11 +1,16 @@
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using AI.Gateway.Api.Services;
+using Microsoft.AspNetCore.Http;
+using System.Threading;
 
 namespace AI.Gateway.Api
 {
-    // Minimal typed exception handler that maps all unhandled runtime exceptions
-    // to a safe 500 ProblemDetails response. Implements only the required
-    // TryHandleAsync method as requested.
+    // Minimal typed exception handler that maps known AiServiceException kinds
+    // (UpstreamFailure, InvalidResponse) to a safe 502 Bad Gateway ProblemDetails
+    // response. Other unhandled runtime exceptions are mapped to a safe 500
+    // ProblemDetails response. Implements only the required TryHandleAsync
+    // method as requested.
     public class GlobalExceptionHandler : IExceptionHandler
     {
         private readonly IProblemDetailsService _problemDetailsService;
@@ -19,9 +24,23 @@ namespace AI.Gateway.Api
         {
             if (context == null) throw new ArgumentNullException(nameof(context));
             if (exception == null) throw new ArgumentNullException(nameof(exception));
+            // Map known AI service failures to 502 Bad Gateway, otherwise keep as 500.
+            // Get the framework-provided feature error if available (some hosts wrap
+            // exceptions) then walk the exception chain to find any AiServiceException
+            // and map the configured kinds to 502 while preserving safe ProblemDetails.
+            var status = StatusCodes.Status500InternalServerError;
 
-            // Build a minimal, safe ProblemDetails for a server error
-            var status = 500;
+            var effectiveException = context.Features.Get<IExceptionHandlerFeature>()?.Error ?? exception;
+
+            if (effectiveException is AiServiceException aiEx &&
+                (aiEx.Kind == AiServiceErrorKind.UpstreamFailure ||
+                 aiEx.Kind == AiServiceErrorKind.InvalidResponse))
+            {
+                status = StatusCodes.Status502BadGateway;
+            }
+
+            context.Response.StatusCode = status;
+
             var instance = context.Request?.Path.Value ?? string.Empty;
             var pd = new ProblemDetails
             {
