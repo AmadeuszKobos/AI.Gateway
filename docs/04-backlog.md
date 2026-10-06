@@ -172,3 +172,33 @@ DONE
 - Local SDK package/XML documentation was inspected with Copilot to confirm `System.ClientModel.ClientResultException` as the documented non-success HTTP exception for OpenAI .NET SDK 2.14.0.
 - Final cleanup used targeted edits, followed by self-review, build and tests before commit.
 
+### AG-007 — Map AI service failures to HTTP 502
+
+**Business/Technical Goal**
+
+Map the existing provider-agnostic AI service error categories to safe HTTP responses at the centralized error boundary.
+
+**Acceptance Criteria**
+- [x] `AiServiceException(UpstreamFailure)` maps to HTTP 502 Bad Gateway.
+- [x] `AiServiceException(InvalidResponse)` maps to HTTP 502 Bad Gateway.
+- [x] Other unhandled runtime exceptions continue to return HTTP 500.
+- [x] Existing HTTP 400 validation for missing or whitespace-only prompts remains unchanged.
+- [x] Error responses use safe `ProblemDetails`.
+- [x] Exception messages, stack traces, provider-specific details and OpenAI SDK details are not exposed to clients.
+- [x] `HttpContext.Response.StatusCode` and `ProblemDetails.Status` are kept consistent.
+- [x] Integration tests verify both 502 paths through `WebApplicationFactory` / `HttpClient`.
+- [x] Solution builds without warnings and all tests pass.
+- [x] 16/16 tests passing.
+
+**Status**
+
+DONE
+
+**Copilot Approach**
+
+- Copilot Edit was used for the initial implementation.
+- Manual review identified that the first added tests exercised `GlobalExceptionHandler` directly rather than the full HTTP pipeline.
+- Integration tests were added using `WebApplicationFactory`.
+- Debugging showed that `ProblemDetails.Status` was correctly set to 502 while `HttpContext.Response.StatusCode` remained 500.
+- The final fix explicitly set `context.Response.StatusCode` before writing `ProblemDetails`.
+- The implementation was simplified after debugging and validated with the full test suite.

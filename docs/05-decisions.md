@@ -177,3 +177,43 @@ Trade-offs:
 - Revisit transport/network classification if the SDK contract or observed runtime behavior provides confirmed exception types.
 - Consider semantic validation of `AnalysisResponse` as a separate feature if false-success responses become a concrete risk.
 
+### DEC-AI-HTTP-MAPPING — Map current AI service errors to HTTP 502
+
+**Date:** 2026-10-06  
+**Status:** Accepted
+
+**Context**
+
+AG-006 introduced a provider-agnostic `AiServiceException` with two current categories: `UpstreamFailure` and `InvalidResponse`. The HTTP boundary still treated both as generic HTTP 500 errors.
+
+**Options Considered**
+1. Keep both categories mapped to HTTP 500.
+2. Map the categories differently.
+3. Map both current AI service error categories to HTTP 502 Bad Gateway.
+
+**Decision**
+
+Map both `AiServiceErrorKind.UpstreamFailure` and `AiServiceErrorKind.InvalidResponse` to HTTP 502 Bad Gateway in `GlobalExceptionHandler`.
+
+Other unhandled runtime exceptions continue to return HTTP 500. Request validation errors such as missing or whitespace-only prompts remain HTTP 400.
+
+**Why**
+
+- Both current AI service error kinds represent failures while processing a request through an upstream AI dependency.
+- The client request itself may still be valid, so HTTP 400 would be misleading.
+- A single 502 mapping keeps the initial error policy simple and provider-agnostic.
+- The decision reuses the centralized `IExceptionHandler` boundary without changing controllers or integration contracts.
+
+**Consequences**
+
+Positive:
+- clients can distinguish AI dependency failures from generic internal server errors,
+- HTTP semantics remain independent from OpenAI SDK exception types,
+- the centralized error boundary remains the only place responsible for HTTP mapping.
+
+Trade-offs:
+- `UpstreamFailure` and `InvalidResponse` are not distinguished at the HTTP status-code level,
+- future requirements may justify more granular mappings.
+
+**Follow-up**
+- Revisit the mapping only if a concrete client, retry, availability, or observability requirement needs finer distinction.

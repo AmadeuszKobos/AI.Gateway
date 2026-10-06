@@ -48,6 +48,8 @@ Zaimplementowano techniczny vertical slice z rzeczywistą integracją runtime z 
 
 Wprowadzono provider-agnostic kontrakt błędów dla integracji AI: `AiServiceException` z kategoriami `UpstreamFailure` i `InvalidResponse`. `OpenAIResponsesClient` tłumaczy potwierdzone błędy non-success z SDK (`ClientResultException`) na `UpstreamFailure`, natomiast `OpenAIPromptAnalyzer` klasyfikuje pustą odpowiedź, niepoprawny JSON i deserializację do `null` jako `InvalidResponse`. Cancellation pozostaje natywnym `OperationCanceledException` i nie jest wrapowane.
 
+GlobalExceptionHandler mapuje obecnie oba istniejące rodzaje `AiServiceException` (`UpstreamFailure` i `InvalidResponse`) na HTTP 502 Bad Gateway. Pozostałe nieobsłużone wyjątki nadal zwracają HTTP 500. Odpowiedzi pozostają bezpiecznym `ProblemDetails`, a status HTTP jest jawnie synchronizowany z `ProblemDetails.Status` (AG-007).
+
 Ważne: osiągnięto rzeczywistą komunikację z API OpenAI podczas kontrolnych testów smoke; pełna, opłacona end-to-end (E2E) walidacja poprawnego structured-output pozostaje nieukończona.
 
 ## Najważniejsze komponenty
@@ -67,6 +69,7 @@ Ważne: osiągnięto rzeczywistą komunikację z API OpenAI podczas kontrolnych 
 - [x] Dodano centralną obsługę nieobsłużonych wyjątków przy użyciu IExceptionHandler i ProblemDetails, z bezpiecznymi odpowiedziami HTTP 500 (AG-004).
 - [x] Zachowano diagnostykę frameworka dla wyjątków obsłużonych przez GlobalExceptionHandler (AG-005).
 - [x] Dodano provider-agnostic klasyfikację błędów integracji AI (`UpstreamFailure`, `InvalidResponse`) bez wrapowania cancellation (AG-006).
+- [x] Dodano mapowanie `AiServiceException` (`UpstreamFailure`, `InvalidResponse`) na HTTP 502 Bad Gateway z zachowaniem bezpiecznego `ProblemDetails` i regresji 500/400 (AG-007).
 
 ## Aktualny task
 Brak aktywnego tasku.
@@ -75,7 +78,6 @@ Brak aktywnego tasku.
 Otwarte pytania / ograniczenia do uwzględnienia:
 - Pełna, opłacona E2E walidacja poprawnej strukturalnej odpowiedzi pozostaje pending (testy smoke wykonały połączenie z providerem, ale płatne żądanie z pełnym structured-output nie zostało ukończone).
 - SDK OpenAI 2.14.0 nie wystawia jeszcze w pełni typowanego, publicznego API do structured outputs, dlatego implementacja używa Patch do ustawienia $.text.format.
-- `GlobalExceptionHandler` nadal nie mapuje kategorii `AiServiceException` na osobne statusy HTTP; obecnie pozostają one częścią ogólnej ścieżki 500.
 - Brak retry/limitowania/observability/authentication/deployment — te aspekty nie zostały zaimplementowane i nie są przedmiotem tego sprintu.
 
 ## Aktualne elementy konfiguracji GitHub Copilot

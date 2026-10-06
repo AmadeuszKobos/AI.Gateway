@@ -91,7 +91,13 @@ Runtime AI integration failures are classified before reaching the HTTP error bo
 - Empty/whitespace output, malformed JSON and deserialization to `null` are translated in `OpenAIPromptAnalyzer` to `AiServiceException` with `InvalidResponse`.
 - `OperationCanceledException` is not wrapped and preserves native .NET cancellation semantics.
 
-`GlobalExceptionHandler` does not yet map these categories to distinct HTTP status codes; they still fall through the generic safe HTTP 500 path. More granular HTTP mappings are intentionally deferred.
+`GlobalExceptionHandler` maps both current `AiServiceException` categories (`UpstreamFailure` and `InvalidResponse`) to HTTP 502 Bad Gateway.
+
+Other unhandled runtime exceptions continue to return HTTP 500.
+
+The handler keeps the HTTP response status and `ProblemDetails.Status` consistent by explicitly setting `HttpContext.Response.StatusCode` before writing the `ProblemDetails` response.
+
+HTTP 400 validation for missing or whitespace-only prompts remains handled by `AnalysisController`.
 
 ## 8. Security Boundaries
 TODO: brak wdrożonych mechanizmów uwierzytelniania/autoryzacji w obecnej implementacji.
@@ -109,7 +115,6 @@ TODO: brak zdefiniowanego modelu deploymentu w repozytorium.
 - OpenAI Responses surface in SDK 2.14.0 is experimental/evaluation and subject to change.
 - Structured output uses Patch to set $.text.format because typed SDK support for structured outputs is not available in 2.14.0.
 - No retries or rate-limiting implemented.
-- `AiServiceException` categories are not yet mapped to distinct HTTP status codes by `GlobalExceptionHandler`.
 - No full observability stack (metrics export, distributed tracing, log aggregation) implemented.
 - No provider fallback or multi-provider support.
 - Full paid structured-output end-to-end success is still pending (controlled smoke tests reached the provider, but final paid structured-output confirmation remains incomplete).
