@@ -139,3 +139,36 @@ DONE
 **Copilot Approach**
 
 AI / Copilot został użyty do analizy możliwych rozwiązań i porównania podejść. Sama zmiana w `Program.cs` (konfiguracja `UseExceptionHandler` z odpowiednimi `ExceptionHandlerOptions`) została wykonana ręcznie.
+
+### AG-006 — Provider-agnostic AI service error classification
+
+**Business/Technical Goal**
+
+Introduce a minimal provider-agnostic error contract for runtime failures in the AI integration without leaking OpenAI SDK exception types above the SDK boundary.
+
+**Acceptance Criteria**
+- [x] `AiServiceException` introduced as a single provider-agnostic custom exception type.
+- [x] `AiServiceErrorKind` contains `UpstreamFailure` and `InvalidResponse`.
+- [x] `OpenAIResponsesClient` remains the direct OpenAI SDK boundary; no secondary production adapter was introduced.
+- [x] Confirmed SDK non-success responses (`System.ClientModel.ClientResultException`) are translated to `AiServiceException(UpstreamFailure)` with the original exception preserved as `InnerException`.
+- [x] `OperationCanceledException` is not wrapped and preserves native cancellation semantics.
+- [x] Empty/whitespace provider output is classified as `InvalidResponse`.
+- [x] Malformed JSON is classified as `InvalidResponse` and preserves the original `JsonException` as `InnerException`.
+- [x] Deserialization to `null` is classified as `InvalidResponse`.
+- [x] Semantic validation of incomplete `AnalysisResponse` remains outside the scope of this task.
+- [x] `GlobalExceptionHandler` and HTTP status mappings remain unchanged.
+- [x] No retry, logging, observability or new dependencies were introduced.
+- [x] Solution builds without warnings and all tests pass.
+
+**Status**
+
+DONE
+
+**Copilot Approach**
+
+- Copilot Chat was used to identify and classify runtime failure paths and to separate confirmed behavior from SDK/runtime inference.
+- Agent Mode implemented the first version of the exception contract; the generated secondary SDK adapter and broad `catch (Exception)` were rejected during manual architectural review.
+- The design was simplified back to the existing `IOpenAIResponsesClient` / `OpenAIResponsesClient` boundary.
+- Local SDK package/XML documentation was inspected with Copilot to confirm `System.ClientModel.ClientResultException` as the documented non-success HTTP exception for OpenAI .NET SDK 2.14.0.
+- Final cleanup used targeted edits, followed by self-review, build and tests before commit.
+

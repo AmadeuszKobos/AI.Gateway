@@ -46,6 +46,8 @@ Dodatkowe elementy runtime:
 Zdefiniowano problem, docelowego użytkownika, główny demonstracyjny use case oraz granice MVP.
 Zaimplementowano techniczny vertical slice z rzeczywistą integracją runtime z OpenAI Responses API. Zamiast FakePromptAnalyzer w czasie wykonywania aplikacji używany jest OpenAIPromptAnalyzer, który deleguje do adaptera IOpenAIResponsesClient i dalej do OpenAIResponsesClient (który korzysta z oficjalnego SDK 2.14.0). FakePromptAnalyzer pozostaje w repozytorium jako deterministyczna implementacja, ale nie jest używany jako aktywny analyzer runtime.
 
+Wprowadzono provider-agnostic kontrakt błędów dla integracji AI: `AiServiceException` z kategoriami `UpstreamFailure` i `InvalidResponse`. `OpenAIResponsesClient` tłumaczy potwierdzone błędy non-success z SDK (`ClientResultException`) na `UpstreamFailure`, natomiast `OpenAIPromptAnalyzer` klasyfikuje pustą odpowiedź, niepoprawny JSON i deserializację do `null` jako `InvalidResponse`. Cancellation pozostaje natywnym `OperationCanceledException` i nie jest wrapowane.
+
 Ważne: osiągnięto rzeczywistą komunikację z API OpenAI podczas kontrolnych testów smoke; pełna, opłacona end-to-end (E2E) walidacja poprawnego structured-output pozostaje nieukończona.
 
 ## Najważniejsze komponenty
@@ -53,6 +55,7 @@ Ważne: osiągnięto rzeczywistą komunikację z API OpenAI podczas kontrolnych 
 - IPromptAnalyzer (interfejs) — kontrakt analizy promptu
 - OpenAIPromptAnalyzer — implementacja uruchomieniowa delegująca do IOpenAIResponsesClient
 - IOpenAIResponsesClient / OpenAIResponsesClient — minimalny adapter izolujący zależności od OpenAI SDK
+- AiServiceException / AiServiceErrorKind — provider-agnostic kontrakt błędów dla upstream failure i invalid response
 - FakePromptAnalyzer — deterministyczna implementacja pozostająca w repozytorium, ale niewykorzystywana jako aktywny runtime analyzer
 - Wbudowane OpenAPI i Swagger UI (Swagger UI działa tylko w środowisku Development)
 
@@ -63,6 +66,7 @@ Ważne: osiągnięto rzeczywistą komunikację z API OpenAI podczas kontrolnych 
 - [x] Osiągnięto rzeczywistą komunikację z API OpenAI podczas kontrolnych testów smoke; pełna, opłacona end-to-end (E2E) walidacja poprawnego structured-output pozostaje nieukończona.
 - [x] Dodano centralną obsługę nieobsłużonych wyjątków przy użyciu IExceptionHandler i ProblemDetails, z bezpiecznymi odpowiedziami HTTP 500 (AG-004).
 - [x] Zachowano diagnostykę frameworka dla wyjątków obsłużonych przez GlobalExceptionHandler (AG-005).
+- [x] Dodano provider-agnostic klasyfikację błędów integracji AI (`UpstreamFailure`, `InvalidResponse`) bez wrapowania cancellation (AG-006).
 
 ## Aktualny task
 Brak aktywnego tasku.
@@ -71,6 +75,7 @@ Brak aktywnego tasku.
 Otwarte pytania / ograniczenia do uwzględnienia:
 - Pełna, opłacona E2E walidacja poprawnej strukturalnej odpowiedzi pozostaje pending (testy smoke wykonały połączenie z providerem, ale płatne żądanie z pełnym structured-output nie zostało ukończone).
 - SDK OpenAI 2.14.0 nie wystawia jeszcze w pełni typowanego, publicznego API do structured outputs, dlatego implementacja używa Patch do ustawienia $.text.format.
+- `GlobalExceptionHandler` nadal nie mapuje kategorii `AiServiceException` na osobne statusy HTTP; obecnie pozostają one częścią ogólnej ścieżki 500.
 - Brak retry/limitowania/observability/authentication/deployment — te aspekty nie zostały zaimplementowane i nie są przedmiotem tego sprintu.
 
 ## Aktualne elementy konfiguracji GitHub Copilot
@@ -84,4 +89,4 @@ custom agents: TODO
 Copilot został wykorzystany do analizy repozytorium, wsparcia przy implementacji kodu i testów oraz przy edycji dokumentacji widocznej w repozytorium.
 
 ## Ostatnia aktualizacja
-2026-10-05
+2026-10-06
