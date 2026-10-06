@@ -21,6 +21,7 @@ Główne elementy zaimplementowane w repozytorium:
 - IPromptAnalyzer (kontrakt)
 - OpenAIPromptAnalyzer (runtime implementation)
 - IOpenAIResponsesClient, OpenAIResponsesClient (adapter + SDK boundary)
+- AiServiceException, AiServiceErrorKind (provider-agnostic error contract)
 - FakePromptAnalyzer — deterministyczna implementacja pozostająca w repozytorium, ale niewykorzystywana jako aktywny runtime analyzer
 - wbudowane OpenAPI i Swagger UI (Swagger UI włączany tylko w środowisku Development)
 
@@ -39,15 +40,21 @@ Główne elementy zaimplementowane w repozytorium:
 **Dependencies:** brak (interfejs)
 
 ### Component: OpenAIPromptAnalyzer
-**Responsibility:** Implementacja uruchomieniowa IPromptAnalyzer, która waliduje prompt, wywołuje IOpenAIResponsesClient, sprawdza, że odpowiedź dostawcy nie jest pusta oraz deserializuje JSON do AnalysisResponse. Nie zawiera typów SDK OpenAI (zależność realizowana wyłącznie przez interfejs adaptera).
+**Responsibility:** Implementacja uruchomieniowa IPromptAnalyzer, która waliduje prompt, wywołuje IOpenAIResponsesClient, sprawdza, że odpowiedź dostawcy nie jest pusta oraz deserializuje JSON do AnalysisResponse. Pusty/whitespace output, niepoprawny JSON i wynik deserializacji `null` klasyfikuje jako `AiServiceException(InvalidResponse)`. Nie zawiera typów SDK OpenAI (zależność realizowana wyłącznie przez interfejs adaptera).
 **Inputs:** string prompt, CancellationToken
 **Outputs:** AnalysisResponse
 **Dependencies:** IOpenAIResponsesClient
 
 ### Component: IOpenAIResponsesClient / OpenAIResponsesClient
 **Responsibility (IOpenAIResponsesClient):** Minimalna warstwa-adapter dla wywołania OpenAI Responses; utrzymuje kod wyższego poziomu wolny od typów SDK.
-**Responsibility (OpenAIResponsesClient):** Odpowiada za konstrukcję żądania specyficznego dla SDK, konfiguruje strukturalizowany output (JSON Schema) poprzez Patch na $.text.format, wywołuje ResponsesClient.CreateResponseAsync oraz wydobywa tekst wyjściowy za pomocą GetOutputText.
+**Responsibility (OpenAIResponsesClient):** Odpowiada za konstrukcję żądania specyficznego dla SDK, konfiguruje strukturalizowany output (JSON Schema) poprzez Patch na $.text.format, wywołuje ResponsesClient.CreateResponseAsync oraz wydobywa tekst wyjściowy za pomocą GetOutputText. Potwierdzone błędy non-success HTTP zgłaszane przez SDK jako `ClientResultException` tłumaczy na provider-agnostic `AiServiceException(UpstreamFailure)`.
 **Dependencies:** OpenAI .NET SDK 2.14.0 (Responses API)
+
+
+### Component: AiServiceException / AiServiceErrorKind
+**Responsibility:** Provider-agnostic kontrakt reprezentujący błędy integracji z zewnętrzną usługą AI bez przeciekania typów OpenAI SDK do wyższych warstw.
+**Kinds:** `UpstreamFailure`, `InvalidResponse`.
+**Behavior:** `UpstreamFailure` reprezentuje potwierdzony non-success upstream/API failure przetłumaczony na granicy SDK. `InvalidResponse` reprezentuje odpowiedź, której aplikacja nie może zaakceptować jako poprawnego `AnalysisResponse`. Oryginalny wyjątek może być zachowany jako `InnerException`. Cancellation nie jest częścią tego kontraktu i pozostaje natywnym `OperationCanceledException`.
 
 ### Component: FakePromptAnalyzer
 **Responsibility:** Deterministyczna implementacja pozostająca w repozytorium, ale niewykorzystywana jako aktywny runtime analyzer.
@@ -79,8 +86,12 @@ for exceptions handled by `GlobalExceptionHandler` (the application still return
 safe `ProblemDetails` to clients while allowing ASP.NET Core to emit its diagnostic
 events for operational visibility).
 
-More granular mappings such as provider availability vs invalid upstream responses
-are intentionally not implemented yet.
+Runtime AI integration failures are classified before reaching the HTTP error boundary:
+- `ClientResultException` from the OpenAI SDK for non-success HTTP responses is translated in `OpenAIResponsesClient` to `AiServiceException` with `UpstreamFailure`.
+- Empty/whitespace output, malformed JSON and deserialization to `null` are translated in `OpenAIPromptAnalyzer` to `AiServiceException` with `InvalidResponse`.
+- `OperationCanceledException` is not wrapped and preserves native .NET cancellation semantics.
+
+`GlobalExceptionHandler` does not yet map these categories to distinct HTTP status codes; they still fall through the generic safe HTTP 500 path. More granular HTTP mappings are intentionally deferred.
 
 ## 8. Security Boundaries
 TODO: brak wdrożonych mechanizmów uwierzytelniania/autoryzacji w obecnej implementacji.
@@ -98,6 +109,7 @@ TODO: brak zdefiniowanego modelu deploymentu w repozytorium.
 - OpenAI Responses surface in SDK 2.14.0 is experimental/evaluation and subject to change.
 - Structured output uses Patch to set $.text.format because typed SDK support for structured outputs is not available in 2.14.0.
 - No retries or rate-limiting implemented.
+- `AiServiceException` categories are not yet mapped to distinct HTTP status codes by `GlobalExceptionHandler`.
 - No full observability stack (metrics export, distributed tracing, log aggregation) implemented.
 - No provider fallback or multi-provider support.
 - Full paid structured-output end-to-end success is still pending (controlled smoke tests reached the provider, but final paid structured-output confirmation remains incomplete).

@@ -126,3 +126,54 @@ Trade-offs:
 
 **Follow-up**
 - Consider more granular mappings when there is a concrete client or observability use case.
+
+### DEC-AI-SERVICE-ERRORS — Use a minimal provider-agnostic AI service error contract
+
+**Date:** 2026-10-06  
+**Status:** Accepted
+
+**Context**
+
+Runtime failures from the OpenAI integration previously surfaced as a mix of SDK-specific exceptions, `JsonException` and `InvalidOperationException`. The application needs a stable error vocabulary above the OpenAI SDK boundary without introducing a large exception hierarchy or changing the existing exception-based control flow.
+
+**Options Considered**
+1. Propagate existing SDK/runtime exception types unchanged.
+2. Introduce multiple provider-specific custom exception classes.
+3. Introduce one provider-agnostic `AiServiceException` with a small `AiServiceErrorKind` discriminator.
+4. Replace exception flow with a `Result<T, Error>` model.
+
+**Decision**
+
+Use one provider-agnostic `AiServiceException` with two current categories: `UpstreamFailure` and `InvalidResponse`.
+
+- `OpenAIResponsesClient` translates the confirmed SDK non-success exception `System.ClientModel.ClientResultException` to `UpstreamFailure`.
+- `OpenAIPromptAnalyzer` translates empty/whitespace output, malformed JSON and deserialization to `null` to `InvalidResponse`.
+- `OperationCanceledException` is not wrapped.
+- No secondary SDK adapter is introduced solely for testability.
+
+**Why**
+
+- Keeps OpenAI SDK types localized to the existing SDK boundary.
+- Preserves the current exception-based application flow and avoids a broader `Result` refactor.
+- Uses one custom exception type instead of a hierarchy.
+- Preserves native .NET cancellation semantics.
+- Allows future HTTP mappings without coupling `GlobalExceptionHandler` to OpenAI SDK types.
+
+**Consequences**
+
+Positive:
+- stable provider-agnostic error contract above the SDK boundary,
+- clear separation between upstream/API failure and invalid provider content,
+- original exceptions can remain available through `InnerException`,
+- minimal additional production complexity.
+
+Trade-offs:
+- `GlobalExceptionHandler` does not yet map the categories to distinct HTTP status codes,
+- direct deterministic unit testing of the concrete OpenAI SDK boundary remains limited without an integration-style HTTP test,
+- low-level network failures not explicitly documented by the current SDK are not proactively classified.
+
+**Follow-up**
+- Add distinct HTTP mappings only when there is a concrete API/client requirement.
+- Revisit transport/network classification if the SDK contract or observed runtime behavior provides confirmed exception types.
+- Consider semantic validation of `AnalysisResponse` as a separate feature if false-success responses become a concrete risk.
+
