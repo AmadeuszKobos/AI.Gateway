@@ -75,7 +75,7 @@ namespace AI.Gateway.Tests
             var body = await response.Content.ReadAsStringAsync();
             if (response.StatusCode != HttpStatusCode.BadRequest)
             {
-                Assert.True(false, $"Expected 400 but got {response.StatusCode}. Body: {body}");
+                Assert.Fail($"Expected 400 but got {response.StatusCode}. Body: {body}");
             }
         }
     }
