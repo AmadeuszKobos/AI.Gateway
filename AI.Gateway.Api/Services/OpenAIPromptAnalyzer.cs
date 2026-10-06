@@ -31,14 +31,23 @@ namespace AI.Gateway.Api.Services
 
             if (string.IsNullOrWhiteSpace(jsonText))
             {
-                throw new InvalidOperationException("OpenAI response did not contain structured JSON output.");
+                throw new AiServiceException(AiServiceErrorKind.InvalidResponse, "AI provider returned empty response.");
             }
 
             var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-            var analysis = JsonSerializer.Deserialize<AnalysisResponse>(jsonText, jsonOptions);
+            AnalysisResponse? analysis;
+            try
+            {
+                analysis = JsonSerializer.Deserialize<AnalysisResponse>(jsonText, jsonOptions);
+            }
+            catch (JsonException jex)
+            {
+                throw new AiServiceException(AiServiceErrorKind.InvalidResponse, "Failed to parse AI provider JSON response.", jex);
+            }
+
             if (analysis == null)
             {
-                throw new InvalidOperationException("Failed to deserialize OpenAI structured output to AnalysisResponse.");
+                throw new AiServiceException(AiServiceErrorKind.InvalidResponse, "AI provider JSON deserialized to null.");
             }
 
             return analysis;

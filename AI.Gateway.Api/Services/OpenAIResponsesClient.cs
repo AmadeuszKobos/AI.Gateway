@@ -1,8 +1,9 @@
+using OpenAI.Responses;
 using System;
+using System.ClientModel;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using OpenAI.Responses;
 
 namespace AI.Gateway.Api.Services
 {
@@ -61,14 +62,20 @@ namespace AI.Gateway.Api.Services
 
             var reqOptions = new CreateResponseOptions { Model = model };
             reqOptions.InputItems.Add(ResponseItem.CreateUserMessageItem(prompt));
-
-
-
             #pragma warning disable SCME0001
             reqOptions.Patch.Set(Encoding.UTF8.GetBytes("$.text.format"), BinaryData.FromString(PromptAnalysisJsonSchema));
-
-            var clientResult = await _client.CreateResponseAsync(reqOptions, cancellationToken).ConfigureAwait(false);
             #pragma warning restore SCME0001
+            
+            ClientResult<ResponseResult> clientResult;
+
+            try
+            {
+                clientResult = await _client.CreateResponseAsync(reqOptions, cancellationToken).ConfigureAwait(false);
+            }
+            catch (System.ClientModel.ClientResultException cre)
+            {
+                throw new AiServiceException(AiServiceErrorKind.UpstreamFailure, "AI provider returned a non-success status.", cre);
+            }
 
             var responseResult = clientResult.Value;
             #pragma warning restore OPENAI001
